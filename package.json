@@ -1,0 +1,20 @@
+{
+  "name": "test",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aternus/csv-to-xlsx": "^2.1.2",
+    "csv-parse": "^5.5.2",
+    "dotenv": "^16.3.1",
+    "json2csv": "^6.0.0-alpha.2",
+    "pg": "^8.11.3",
+    "xlsx": "^0.18.5"
+  }
+}
