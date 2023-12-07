@@ -6,8 +6,8 @@ const getFormattedAccountData = (xlData) => {
     if(!xl[smd.fields.proposedSite]) {
       continue;
     }
-    if(!data.includes(xl[smd.fields.proposedAccount])) {
-      data.push(xl[smd.fields.proposedAccount]);
+    if(!data.includes(xl[smd.fields.proposedAccount].trim())) {
+      data.push(xl[smd.fields.proposedAccount].trim());
     }
   }
   data.sort((a,b) => (a > b ? 1 : -1));

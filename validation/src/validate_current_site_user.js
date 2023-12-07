@@ -15,16 +15,16 @@ const getUserValidationFormattedData = (xlData) => {
     if(xl[smd.fields.moveTo]) {
       data.__moveToMap__.push({from: xl[smd.fields.currentSite],to: xl[smd.fields.moveTo]});
     } else {
-      if(data.__ouMap__[xl[smd.fields.proposedOu]]) {
-        data.__ouMap__[xl[smd.fields.proposedOu]].push(xl[smd.fields.currentSite]);
+      if(data.__ouMap__[xl[smd.fields.proposedOu].trim()]) {
+        data.__ouMap__[xl[smd.fields.proposedOu].trim()].push(xl[smd.fields.currentSite]);
       } else {
-        data.__ouMap__[xl[smd.fields.proposedOu]] = [xl[smd.fields.currentSite]];
+        data.__ouMap__[xl[smd.fields.proposedOu].trim()] = [xl[smd.fields.currentSite]];
       }
       if(data.__siteMap__[xl[smd.fields.currentSite]]) {
         throw ('Site already exists');
       }
       data.__siteMap__[xl[smd.fields.currentSite]] = {
-        proposedOu: xl[smd.fields.proposedOu],proposedAccount: xl[smd.fields.proposedAccount],proposedSite: xl[smd.fields.proposedSite],
+        proposedOu: xl[smd.fields.proposedOu].trim(),proposedAccount: xl[smd.fields.proposedAccount].trim(),proposedSite: xl[smd.fields.proposedSite].trim(),
         currentAccount: xl[smd.fields.currentAccount],currentOu: xl[smd.fields.currentOu],currentSite: xl[smd.fields.currentSite]
       };
     }
@@ -129,9 +129,9 @@ async function writeCsv(data) {
   ];
   const opts = {fields};
   const csv = await parseAsync(data,opts);
-  const csvFile = `report/${validation.userReport}.csv`;
-  const xlsxFile = `report/${validation.userReport}.xlsx`;
-  const jsonFile = `report/${validation.userReport}.json`;
+  const csvFile = `report/${validation.siteReport}.csv`;
+  const xlsxFile = `report/${validation.siteReport}.xlsx`;
+  const jsonFile = `report/${validation.siteReport}.json`;
   if(existsSync(csvFile)) rmSync(csvFile);
   if(existsSync(xlsxFile)) rmSync(xlsxFile);
   if(existsSync(jsonFile)) rmSync(jsonFile);

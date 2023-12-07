@@ -55,11 +55,14 @@ async function writeCsv(data) {
   const opts = {fields};
   const csv = await parseAsync(data,opts);
   const csvFile = `report/${validation.ouReport}.csv`;
-  const xlsxFile = `report/${validation.ouReport}.xlsx`
+  const xlsxFile = `report/${validation.ouReport}.xlsx`;
+  const jsonFile = `report/${validation.ouReport}.json`;
   if(existsSync(csvFile)) rmSync(csvFile);
   if(existsSync(xlsxFile)) rmSync(xlsxFile);
+  if(existsSync(jsonFile)) rmSync(jsonFile);
   writeFileSync(csvFile,csv,{encoding: 'utf-8'});
   convertCsvToXlsx(csvFile,xlsxFile);
+  writeFileSync(jsonFile,JSON.stringify(data,null,4));
 }
 
 module.exports = {

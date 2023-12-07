@@ -6,8 +6,8 @@ const getFormattedOuData = (xlData) => {
     if(!xl[smd.fields.proposedSite]) {
       continue;
     }
-    if(!data.includes(xl[smd.fields.proposedOu])) {
-      data.push(xl[smd.fields.proposedOu]);
+    if(!data.includes(xl[smd.fields.proposedOu].trim())) {
+      data.push(xl[smd.fields.proposedOu].trim());
     }
   }
   data.sort((a,b) => (a > b ? 1 : -1));

@@ -113,7 +113,7 @@ const cleanAccounts = async (pool) => {
     select u.id, u.username from "user" u
 where tenant_id = $1 and is_active =true and is_deleted =false and country_id = $2 order by id asc`,[account.tenantId,country.id]);
     for(let user of result.rows) {
-      await deleteUser(user.username,country.id,pool);
+      await deleteUser(user.username,country.id,'Deleted the Account user (KSM)(PF)',pool);
     }
     console.log(`Cleared Account ${account.name} (${site})`)
 
@@ -130,7 +130,7 @@ const cleanOus = async (pool) => {
     select u.id, u.username from "user" u
 where tenant_id = $1 and is_active =true and is_deleted =false and country_id = $2 order by id asc`,[ou.tenantId,country.id]);
     for(let user of result.rows) {
-      await deleteUser(user.username,country.id,pool);
+      await deleteUser(user.username,country.id,'Deleted the OU user (KSM)(PF)',pool);
     }
     console.log(`Cleared OU ${ou.name} (${site})`)
 
@@ -147,7 +147,7 @@ const cleanSites = async (pool) => {
     select u.id, u.username from "user" u
 where tenant_id = $1 and is_active =true and is_deleted =false  and country_id = $2 order by id asc`,[siteDetail.tenantId,country.id]);
     for(let user of result.rows) {
-      await deleteUser(user.username,country.id,pool);
+      await deleteUser(user.username,country.id,'Deleted the Site user (KSM)(PF)',pool);
     }
     console.log(`Cleared Site ${siteDetail.name}`)
   }

@@ -28,21 +28,21 @@ const setOrgData = (xlData) => {
     if(!xl[smd.fields.moveTo]) {
 
       // proposed
-      if(!orgData.proposed.__accountMap__[xl[smd.fields.proposedAccount]]) {
-        orgData.proposed.__accountMap__[xl[smd.fields.proposedAccount]] = {id: null,tenantId: null};
+      if(!orgData.proposed.__accountMap__[xl[smd.fields.proposedAccount].trim()]) {
+        orgData.proposed.__accountMap__[xl[smd.fields.proposedAccount].trim()] = {id: null,tenantId: null};
       }
-      if(!orgData.proposed.__ouMap__[xl[smd.fields.proposedOu]]) {
-        orgData.proposed.__ouMap__[xl[smd.fields.proposedOu]] = {id: null,tenantId: null,account: xl[smd.fields.proposedAccount]};
+      if(!orgData.proposed.__ouMap__[xl[smd.fields.proposedOu].trim()]) {
+        orgData.proposed.__ouMap__[xl[smd.fields.proposedOu].trim()] = {id: null,tenantId: null,account: xl[smd.fields.proposedAccount].trim()};
       }
-      if(!orgData.proposed.__siteMap__[xl[smd.fields.proposedSite]]) {
-        orgData.proposed.__siteMap__[xl[smd.fields.proposedSite]] = {
-          id: null,tenantId: null,mflCode: xl[smd.fields.mflCode],account: xl[smd.fields.proposedAccount],ou: xl[smd.fields.proposedOu],currentSite: xl[smd.fields.currentSite],nameChange: null
+      if(!orgData.proposed.__siteMap__[xl[smd.fields.proposedSite].trim()]) {
+        orgData.proposed.__siteMap__[xl[smd.fields.proposedSite].trim()] = {
+          id: null,tenantId: null,mflCode: xl[smd.fields.mflCode],account: xl[smd.fields.proposedAccount].trim(),ou: xl[smd.fields.proposedOu].trim(),currentSite: xl[smd.fields.currentSite],nameChange: null
         };
       }
       if(!orgData.proposed.__programMap__[xl[smd.fields.currentProgram]]) {
-        orgData.proposed.__programMap__[xl[smd.fields.currentProgram]] = [xl[smd.fields.proposedSite]]
+        orgData.proposed.__programMap__[xl[smd.fields.currentProgram]] = [xl[smd.fields.proposedSite].trim()]
       } else {
-        orgData.proposed.__programMap__[xl[smd.fields.currentProgram]].push(xl[smd.fields.proposedSite]);
+        orgData.proposed.__programMap__[xl[smd.fields.currentProgram]].push(xl[smd.fields.proposedSite].trim());
       }
 
 
@@ -54,7 +54,7 @@ const setOrgData = (xlData) => {
         orgData.actual.__ouMap__[xl[smd.fields.currentOu]] = {id: null,tenantId: null,account: xl[smd.fields.currentAccount]};
       }
       if(!orgData.actual.__siteMap__[xl[smd.fields.currentSite]]) {
-        orgData.actual.__siteMap__[xl[smd.fields.currentSite]] = {account: xl[smd.fields.currentAccount],ou: xl[smd.fields.currentOu],proposedSite: xl[smd.fields.proposedSite]};
+        orgData.actual.__siteMap__[xl[smd.fields.currentSite]] = {account: xl[smd.fields.currentAccount],ou: xl[smd.fields.currentOu],proposedSite: xl[smd.fields.proposedSite].trim()};
       }
 
     } else {
@@ -124,8 +124,8 @@ const transferPatients = async (pool) => {
   }
 };
 
-const deactivateUser = async (pool) => {
-  const jsonFile = `report/${validation.userReport}.json`
+const deactivateSiteUser = async (pool) => {
+  const jsonFile = `report/${validation.siteReport}.json`
   const userValidation = JSON.parse(readFileSync(jsonFile,{encoding: 'utf-8'}));
   const uniqueUsers = [];
   for(const userData of userValidation) {
@@ -133,8 +133,40 @@ const deactivateUser = async (pool) => {
   }
   console.log(uniqueUsers.length);
   for(const user of uniqueUsers) {
-    await deleteUser(user,orgData.country.id,pool);
+    await deleteUser(user,orgData.country.id,'Deleted the Site user (KSM)',pool);
   }
+};
+
+const deactivateOuUser = async (pool) => {
+  const jsonFile = `report/${validation.ouReport}.json`
+  const userValidation = JSON.parse(readFileSync(jsonFile,{encoding: 'utf-8'}));
+  const uniqueUsers = [];
+  for(const userData of userValidation) {
+    if(!uniqueUsers.includes(userData.username)) uniqueUsers.push(userData.username);
+  }
+  console.log(uniqueUsers.length);
+  for(const user of uniqueUsers) {
+    await deleteUser(user,orgData.country.id,'Deleted the OU user (KSM)',pool);
+  }
+};
+
+const deactivateAccountUser = async (pool) => {
+  const jsonFile = `report/${validation.accountReport}.json`
+  const userValidation = JSON.parse(readFileSync(jsonFile,{encoding: 'utf-8'}));
+  const uniqueUsers = [];
+  for(const userData of userValidation) {
+    if(!uniqueUsers.includes(userData.username)) uniqueUsers.push(userData.username);
+  }
+  console.log(uniqueUsers.length);
+  for(const user of uniqueUsers) {
+    await deleteUser(user,orgData.country.id,'Deleted the Account user (KSM)',pool);
+  }
+};
+
+const deactivateUsers = async (pool) => {
+  await deactivateSiteUser(pool);
+  await deactivateOuUser(pool);
+  await deactivateAccountUser(pool);
 };
 
 const cleanCurrentAccounts = async (pool) => {
@@ -204,7 +236,7 @@ const mapSites = async (xlData,pool) => {
   await createAccounts(pool);
   await createOus(pool);
   await updateSites(pool);
-  await deactivateUser(pool);
+  await deactivateUsers(pool);
   await transferPatients(pool);
   await mapPrograms(pool);
   await clear(pool);

@@ -1,4 +1,4 @@
-const {smd, validation} = require('../../common/constants');
+const {smd,validation} = require('../../common/constants');
 const {writeFileSync,rmSync,existsSync} = require('fs');
 const {parseAsync} = require('json2csv');
 const {convertCsvToXlsx} = require('@aternus/csv-to-xlsx');
@@ -25,9 +25,9 @@ const validatAccountUsers = async (xlData,pool) => {
       (select tenant_id from account acc where acc.name  = $1 and acc.is_active =true and acc.is_deleted =false and acc.country_id = $2)
       and u.is_active =true and u.is_deleted =false
       `,[data,global.countryId]);
-      for(let accountDetail of result.rows){
-        accData.push({username: accountDetail.username, currentAccount: data})
-      }
+    for(let accountDetail of result.rows) {
+      accData.push({username: accountDetail.username,currentAccount: data})
+    }
   }
   await writeCsv(accData);
 };
@@ -45,11 +45,14 @@ async function writeCsv(data) {
   const opts = {fields};
   const csv = await parseAsync(data,opts);
   const csvFile = `report/${validation.accountReport}.csv`;
-  const xlsxFile = `report/${validation.accountReport}.xlsx`
+  const xlsxFile = `report/${validation.accountReport}.xlsx`;
+  const jsonFile = `report/${validation.accountReport}.json`;
   if(existsSync(csvFile)) rmSync(csvFile);
   if(existsSync(xlsxFile)) rmSync(xlsxFile);
+  if(existsSync(jsonFile)) rmSync(jsonFile);
   writeFileSync(csvFile,csv,{encoding: 'utf-8'});
   convertCsvToXlsx(csvFile,xlsxFile);
+  writeFileSync(jsonFile,JSON.stringify(data,null,4));
 }
 
 module.exports = {

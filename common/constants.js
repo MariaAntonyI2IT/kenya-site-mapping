@@ -18,7 +18,7 @@ module.exports = {
     }
   },
   validation: {
-    userReport: 'user_validation',
+    siteReport: 'site_validation',
     accountReport: 'account_validation',
     ouReport: 'ou_validation'
   },
