@@ -11,7 +11,8 @@ module.exports = {
       currentSite: 'Current Facility',
       currentProgram: 'Program Expaned',
       moveTo: 'Move To',
-      mflCode: 'MFL Code'
+      mflCode: 'MFL Code',
+      workflow: 'Workflow'
     },
     json: {
       orgnaization: 'kenya_site_mapping'

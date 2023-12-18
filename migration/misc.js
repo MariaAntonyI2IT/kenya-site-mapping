@@ -41,24 +41,24 @@ const transferPatients = async (pool) => {
   }
 };
 
-const deletePrograms = async(pool) =>{
+const deletePrograms = async (pool) => {
   const keys = Object.keys(orgData.proposed.__moveToMap__);
   for(const moveTo of keys) {
     const oldSite = moveTo;
     console.log(`Updating moveTo (program) ${oldSite}`);
     await pool.query(`DELETE FROM public.site_program
-    WHERE site_id = (select id from site where name = $1)`, [oldSite]);
+    WHERE site_id = (select id from site where name = $1)`,[oldSite]);
     await pool.query(`DELETE FROM public.deleted_site_program
-    WHERE site_id = (select id from site where name = $1)`, [oldSite]);
+    WHERE site_id = (select id from site where name = $1)`,[oldSite]);
     console.log(`Updated moveTo (program) ${oldSite}`);
   }
   const privateKeys = Object.keys(siteData);
   for(const site of privateKeys) {
     console.log(`Updating Private facility (program) ${site}`);
     await pool.query(`DELETE FROM public.site_program
-    WHERE site_id = (select id from site where name = $1)`, [site]);
+    WHERE site_id = (select id from site where name = $1)`,[site]);
     await pool.query(`DELETE FROM public.deleted_site_program
-    WHERE site_id = (select id from site where name = $1)`, [site]);
+    WHERE site_id = (select id from site where name = $1)`,[site]);
     console.log(`Updated Private facility (program) ${site}`);
   }
 }
@@ -90,6 +90,46 @@ const updateScreeningLog = async (site,account,ou,pool) => {
   console.log(`updated screening_log (${result.rowCount})`);
 }
 
+const getWorkflowObj = async (pool) => {
+  const workflowObj = {};
+  const result = await pool.query(`select id, workflow as name from clinical_workflow where is_active=true and is_deleted = false`,[]);
+  for(const workflow of result.rows) {
+    workflowObj[workflow.name] = workflow.id;
+  }
+  return workflowObj;
+};
+
+const getworkflowAccount = (xlData) => {
+  const workflowAccount = {}
+  for(const xl of xlData) {
+    if(xl[smd.fields.proposedAccount] && !workflowAccount[xl[smd.fields.proposedAccount].trim()]) {
+      workflowAccount[xl[smd.fields.proposedAccount].trim()] = xl[smd.fields.workflow].split(',').map(wf => wf.trim());
+    }
+  }
+  return workflowAccount;
+}
+
+const updateClinicalWorkflow = async (xlData,pool) => {
+  populateOrgData();
+  const workflowObj = await getWorkflowObj(pool);
+  const workflowAccount = getworkflowAccount(xlData);
+  const keys = Object.keys(workflowAccount);
+  for(const account of keys) {
+    const workflows = workflowAccount[account];
+    console.log(`Updating workflow for account ${account}`);
+    for(const workflow of workflows) {
+      const accountId = orgData.proposed.__accountMap__[account].id;
+      const workflowId = workflowObj[workflow];
+      if(!accountId || !workflowId) {
+        throw (`Error::: Workflow missing account (${account}) workflow (${workflow})`);
+      }
+      await pool.query(`INSERT INTO public.account_clinical_workflow(
+        account_id, clinical_workflow_id)
+        VALUES ($1, $2)`,[accountId,workflowId]);
+    }
+    console.log(`Updated workflow for account ${account}`);
+  }
+}
 
 const updatePatientRelatedTables = async (pool) => {
   populateOrgData();
@@ -98,6 +138,6 @@ const updatePatientRelatedTables = async (pool) => {
 };
 
 module.exports = {
-  updatePatientRelatedTables
+  updatePatientRelatedTables, updateClinicalWorkflow
 };
 

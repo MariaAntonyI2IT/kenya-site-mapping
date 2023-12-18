@@ -3,3 +3,6 @@ report
 .vscode
 package-lock.json
 .env
+*.xlsx
+*.csv
+*.xls
