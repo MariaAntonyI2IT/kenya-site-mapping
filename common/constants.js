@@ -32,5 +32,27 @@ module.exports = {
     json: {
       site: 'private_facilities'
     }
+  },
+  ksmProgram: {
+    'Novo Nordisk': {
+      merge: 'Novo',
+      name: ''
+    },
+    'Novartis (Afya Dumu)': {
+      merge: 'Novartis',
+      name: 'Afya Dumu'
+    },
+    'Path': {
+      merge: '',
+      name: ''
+    },
+    'Mwanga': {
+      merge: 'Redcross',
+      name: 'Roche- Mwanga'
+    },
+    'The Root Cause': {
+      merge: '',
+      name: ''
+    }
   }
 };

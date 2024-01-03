@@ -160,12 +160,25 @@ const clear = async (pool) => {
   await cleanSites(pool);
 };
 
+const deletePrograms = async (pool) => {
+  const privateKeys = Object.keys(siteData);
+  for(const site of privateKeys) {
+    console.log(`Updating Private facility (program) ${site}`);
+    await pool.query(`DELETE FROM public.site_program
+    WHERE site_id = (select id from site where name = $1)`,[site]);
+    await pool.query(`DELETE FROM public.deleted_site_program
+    WHERE site_id = (select id from site where name = $1)`,[site]);
+    console.log(`Updated Private facility (program) ${site}`);
+  }
+}
+
 const deactivateFacilities = async (xlData,pool) => {
   await setCountryData(pool);
   await setSiteData(xlData,pool);
   await validateOu(pool);
   await validateAccount(pool);
   await validateUsers(pool);
+  await deletePrograms(pool);
   await clear(pool);
   writeSiteJSON();
 };

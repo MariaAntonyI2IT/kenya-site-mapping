@@ -8,6 +8,8 @@ Validate Users
 */
 let mismatch = [];
 let dupCheck = {};
+let matched = {};
+
 
 const getUserValidationFormattedData = (xlData) => {
   const data = {__moveToMap__: [],__ouMap__: {},__siteMap__: {}};
@@ -39,20 +41,20 @@ const getUserValidationFormattedData = (xlData) => {
 const validatSiteUsers = async (xlData,pool) => {
   const formattedData = getUserValidationFormattedData(xlData);
   await validateFacilities(formattedData.__ouMap__,formattedData.__siteMap__,formattedData.__moveToMap__,pool);
+  processFacilities();
   console.log(mismatch.length);
   writeCsv(mismatch);
 };
 
 const validateFacilities = async (ouMap,siteMap,moveToMap,pool) => {
   const keys = Object.keys(ouMap);
-  const execudedSites = moveToMap.map(s => s.from);
   for(const ou of keys) {
     const sites = ouMap[ou];
     for(const site of sites) {
       console.log(`Validating ${site} under ${ou}`);
       const siteData = await pool.query(
         `select s.tenant_id from site s where name = $1
-        and s.is_active = true and s.is_deleted = false`,[site]
+        and s.is_active = true and s.is_deleted = false and s.country_id = $2`,[site,global.countryId]
       );
       const tenantId = siteData.rows[0].tenant_id;
       const userData = await pool.query(
@@ -73,21 +75,24 @@ const validateFacilities = async (ouMap,siteMap,moveToMap,pool) => {
         and s.country_id = $2
         order by u.id    
         `,[tenantId,global.countryId]);
-
       for(const user of userData.rows) {
-        if(sites.indexOf(user.site) == -1 && execudedSites.indexOf(user.site) == -1) {
-          console.log(`Mismatch ${user.username} under ${user.site}`);
-          const siteDetails = siteMap[site] || siteMap[moveToMap.find(s => s.from == site).to];
-          const data = {
-            username: user.username,propsedAccount: siteDetails.proposedAccount,proposedOu: siteDetails.proposedOu,
-            proposedSite: siteDetails.proposedSite,currentAccount: siteDetails.currentAccount,currentOu: siteDetails.currentOu,
-            currentSite: siteDetails.currentSite,mappedFacility: user.tenant_id == tenantId ? '-' : user.site,
-            isDefault: user.tenant_id == tenantId ? 'TRUE' : 'FALSE',sort: user.tenant_id == tenantId ? 'A' : 'B'
-          };
+        const siteDetails = siteMap[site] || siteMap[moveToMap.find(s => s.from == site).to];
+        const data = {
+          username: user.username,propsedAccount: siteDetails.proposedAccount,proposedOu: siteDetails.proposedOu,
+          proposedSite: siteDetails.proposedSite,currentAccount: siteDetails.currentAccount,currentOu: siteDetails.currentOu,
+          currentSite: siteDetails.currentSite
+        };
+        if(sites.indexOf(user.site) == -1) {
           let dupCheckKey = Object.values(data).join('-');
           if(!dupCheck[dupCheckKey]) {
             mismatch.push(data);
             dupCheck[dupCheckKey] = true;
+          }
+        } else {
+          if(matched[data.username]) {
+            matched[data.username].push(data);
+          } else {
+            matched[data.username] = [data];
           }
         }
       }
@@ -95,8 +100,26 @@ const validateFacilities = async (ouMap,siteMap,moveToMap,pool) => {
   }
 }
 
+const processFacilities = () => {
+  const uniqueUsers = [];
+  for(const userData of mismatch) {
+    if(!uniqueUsers.includes(userData.username)) uniqueUsers.push(userData.username);
+  }
+  console.log(uniqueUsers.length + " - unique users");
+  for(const username of uniqueUsers) {
+    const users = matched[username] || [];
+    for(const data of users) {
+      let dupCheckKey = Object.values(data).join('-');
+      if(!dupCheck[dupCheckKey]) {
+        mismatch.push(data);
+        dupCheck[dupCheckKey] = true;
+      }
+    }
+  }
+}
+
 async function writeCsv(data) {
-  data.sort((a,b) => (a.username + a.sort > b.username + b.sort ? 1 : -1));
+  data.sort((a,b) => (a.username > b.username ? 1 : -1));
   const fields = [{
     label: 'User',
     value: 'username',
@@ -118,13 +141,6 @@ async function writeCsv(data) {
   },{
     label: 'Current Facility',
     value: 'currentSite',
-  },{
-    label: 'Is Default Site',
-    value: 'isDefault',
-  },
-  {
-    label: 'Mapped Facility',
-    value: 'mappedFacility',
   }
   ];
   const opts = {fields};

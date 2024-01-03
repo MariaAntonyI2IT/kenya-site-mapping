@@ -17,11 +17,11 @@ async function main() {
     const users = await pool.query(`select u.id, u.tenant_id from "user" u
     inner join site s on s.tenant_id =u.tenant_id 
     inner join operating_unit ou on ou.id =s.operating_unit_id 
-      inner join account acc on acc.id =s.account_id 
+    inner join account acc on acc.id =s.account_id 
     where u.is_active = true and u.is_deleted = false
-    and  s.is_active = true and s.is_deleted = false
-    and  ou.is_active = true and ou.is_deleted = false 
-    and  acc.is_active = true and acc.is_deleted = false and u.tenant_id is not null
+    and s.is_active = true and s.is_deleted = false
+    and ou.is_active = true and ou.is_deleted = false 
+    and acc.is_active = true and acc.is_deleted = false and u.tenant_id is not null
     order by u.id asc`);
     for(const user of users.rows) {
       process.stdout.write('\033[0G');

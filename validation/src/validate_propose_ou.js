@@ -19,7 +19,7 @@ const validateOuData = async (xlData,pool) => {
   for(const data of ouData) {
     console.log(`Validating OU ${data}`);
     const result = await pool.query(
-      `select ou.name as ouName from operating_unit ou
+      `select ou.name as ou_name from operating_unit ou
       where ou.name = $1 and 
       ou.is_active =true and ou.is_deleted =false and ou.country_id = $2
       `,[data,global.countryId]);

@@ -1,4 +1,4 @@
-const {smd,validation} = require('../common/constants');
+const {smd,validation,ksmProgram} = require('../common/constants');
 const {createAccount,createOU,updateSite,deleteAccount,deleteOu,deleteSite,deleteUser} = require('./org');
 const {transferPatient} = require('./patient_transfer');
 const {writeFileSync,existsSync,rmSync,readFileSync} = require('fs');
@@ -21,6 +21,7 @@ let orgData = {
     id: null,
     tenantId: null
   },
+  workflowAccount: {}
 };
 
 const setOrgData = (xlData) => {
@@ -59,6 +60,9 @@ const setOrgData = (xlData) => {
 
     } else {
       orgData.proposed.__moveToMap__[xl[smd.fields.currentSite]] = xl[smd.fields.moveTo];
+    }
+    if(xl[smd.fields.proposedAccount] && !orgData.workflowAccount[xl[smd.fields.proposedAccount].trim()]) {
+      orgData.workflowAccount[xl[smd.fields.proposedAccount].trim()] = xl[smd.fields.workflow].split(',').map(wf => wf.trim());
     }
   }
 };
@@ -102,12 +106,42 @@ const updateSites = async (pool) => {
     const accountData = orgData.proposed.__accountMap__[siteDetail.account];
     const ouData = orgData.proposed.__ouMap__[siteDetail.ou];
     const siteData = await updateSite(siteDetail.currentSite,site,siteDetail.mflCode,accountData,ouData,orgData.country.id,pool);
-    orgData.proposed.__siteMap__[site].id = siteData.id;
-    orgData.proposed.__siteMap__[site].tenantId = siteData.tenantId;
-    orgData.proposed.__siteMap__[site].nameChange = siteDetail.currentSite === site ? '' : site;
+    siteDetail.id = siteData.id;
+    siteDetail.tenantId = siteData.tenantId;
+    siteDetail.nameChange = siteDetail.currentSite === site ? '' : site;
+    await updatePatientDetails(accountData,ouData,siteDetail,pool);
     console.log(`Updated site ${site}`);
   }
 };
+
+const updatePatientDetails = async (account,ou,site,pool) => {
+  const patientDetails = (await pool.query(`select pt.patient_id, pt.id as patient_track_id, s.id as old_site_id from patient_tracker pt
+	left join patient p on p.id = pt.patient_id 
+	inner join site s on s.id =pt.site_id 
+  where s.id = $1 and s.is_active =true and s.is_deleted= false`,[site.id])).rows;
+  if(patientDetails.length) {
+    await updatePatientTracker(patientDetails,account,ou,pool);
+    await updateScreeningLog(site,account,ou,pool);
+  } else {
+    console.log(`No Patient found`);
+  }
+};
+
+const updatePatientTracker = async (patientDetails,account,ou,pool) => {
+  console.log(`updating patient tracker`);
+  const ptIds = patientDetails.map(pd => pd.patient_track_id);
+  const result = await pool.query(`update patient_tracker set operating_unit_id = $1, account_id = $2 where id in (${ptIds.join(',')})`,
+    [ou.id,account.id]);
+  console.log(`updated patient tracker (${result.rowCount})`);
+}
+
+const updateScreeningLog = async (site,account,ou,pool) => {
+  console.log(`updating screening_log`);
+  const result = await pool.query(`update screening_log set operating_unit_id = $1, account_id = $2 where site_id = $3`,
+    [ou.id,account.id,site.id]);
+  console.log(`updated screening_log (${result.rowCount})`);
+}
+
 
 const transferPatients = async (pool) => {
   const keys = Object.keys(orgData.proposed.__moveToMap__);
@@ -196,7 +230,7 @@ const cleanSites = async (pool) => {
   for(const moveTo of keys) {
     console.log(`Clear move to site ${moveTo}`);
     await deleteSite(moveTo,orgData.country.id,pool);
-    console.log(`Cleared ove to site ${moveTo}`);
+    console.log(`Cleared move to site ${moveTo}`);
   }
 };
 
@@ -206,7 +240,7 @@ const clear = async (pool) => {
   await cleanSites(pool);
 };
 
-const mapPrograms = async (pool) => {
+const mapSitePrograms = async (pool) => {
   const keys = Object.keys(orgData.proposed.__programMap__);
   for(const program of keys) {
     console.log(`Updating Program ${program}`);
@@ -225,10 +259,93 @@ const mapPrograms = async (pool) => {
           WHERE site_id = $1 and program_id = $2`,[proposedSite,programId]);
       }
     }
+    for(const currentSite of currentMappedSites) {
+      if(!proposedMappedSites.includes(currentSite)) {
+        throw (`current site program is mismatched with proposed one (program - ${program}, site - ${currentSite})`);
+      }
+    }
     console.log(`Updated Program ${program}`);
   }
 };
 
+const mapPrograms = async (pool) => {
+  const programs = Object.keys(ksmProgram);
+  for(const program of programs) {
+    console.log(`Updating KSM Program ${program}`);
+    const programObj = ksmProgram[program];
+    const result = await pool.query(`select id from program where is_active=true 
+    and is_deleted = false and name = $1 and country_id = $2`,[program,orgData.country.id]);
+    if(result.rows.length !== 1) {
+      throw (`Error::: Program is missing (${program})`);
+    }
+    programObj.id = result.rows[0].id;
+    if(programObj.name) {
+      await pool.query(`update program set name = $1 where id = $2`,[programObj.name,programObj.id]);
+    }
+    if(programObj.merge) {
+      const result = await pool.query(`select id from program where is_active=true 
+      and is_deleted = false and name = $1 and country_id = $2`,[programObj.merge,orgData.country.id]);
+      if(result.rows.length !== 1) {
+        throw (`Error::: Program merge is missing (${programObj.merge})`);
+      }
+      programObj.mergeId = result.rows[0].id;
+      await pool.query(`update program set is_active = $1, is_deleted = $2  where id = $3`,[false,true,programObj.mergeId]);
+      await pool.query(`update patient set program_id = $1 where program_id = $2`,[programObj.id,programObj.mergeId]);
+    }
+    console.log(`Updated KSM Program ${program}`);
+  }
+  orgData.ksmProgram = ksmProgram;
+  await mapSitePrograms(pool);
+};
+
+
+const deletePrograms = async (pool) => {
+  const keys = Object.keys(orgData.proposed.__moveToMap__);
+  for(const moveTo of keys) {
+    const oldSite = moveTo;
+    console.log(`Updating moveTo (program) ${oldSite}`);
+    await pool.query(`DELETE FROM public.site_program
+    WHERE site_id = (select id from site where name = $1)`,[oldSite]);
+    await pool.query(`DELETE FROM public.deleted_site_program
+    WHERE site_id = (select id from site where name = $1)`,[oldSite]);
+    console.log(`Updated moveTo (program) ${oldSite}`);
+  }
+}
+
+const updatePrograms = async (pool) => {
+  await deletePrograms(pool);
+  await mapPrograms(pool);
+}
+
+const getWorkflowObj = async (pool) => {
+  const workflowObj = {};
+  const result = await pool.query(`select id, workflow as name from clinical_workflow where is_active=true and is_deleted = false`,[]);
+  for(const workflow of result.rows) {
+    workflowObj[workflow.name] = workflow.id;
+  }
+  return workflowObj;
+};
+
+
+const updateClinicalWorkflow = async (pool) => {
+  const workflowObj = await getWorkflowObj(pool);
+  const keys = Object.keys(orgData.workflowAccount);
+  for(const account of keys) {
+    const workflows = orgData.workflowAccount[account];
+    console.log(`Updating workflow for account ${account}`);
+    for(const workflow of workflows) {
+      const accountId = orgData.proposed.__accountMap__[account].id;
+      const workflowId = workflowObj[workflow];
+      if(!accountId || !workflowId) {
+        throw (`Error::: Workflow missing account (${account}) workflow (${workflow})`);
+      }
+      await pool.query(`INSERT INTO public.account_clinical_workflow(
+        account_id, clinical_workflow_id)
+        VALUES ($1, $2)`,[accountId,workflowId]);
+    }
+    console.log(`Updated workflow for account ${account}`);
+  }
+}
 
 const mapSites = async (xlData,pool) => {
   await setCountryData(pool);
@@ -238,7 +355,8 @@ const mapSites = async (xlData,pool) => {
   await updateSites(pool);
   await deactivateUsers(pool);
   await transferPatients(pool);
-  await mapPrograms(pool);
+  await updateClinicalWorkflow(pool)
+  await updatePrograms(pool);
   await clear(pool);
   writeOrgJSON();
 };
@@ -252,4 +370,3 @@ const writeOrgJSON = () => {
 module.exports = {
   mapSites
 };
-
