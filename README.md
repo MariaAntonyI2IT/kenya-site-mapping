@@ -10,3 +10,4 @@
 - node validation.js
 - node migrate.js
 - node facilities.js
+- node miscellaneous.js
