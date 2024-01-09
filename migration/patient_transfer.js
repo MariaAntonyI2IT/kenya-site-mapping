@@ -63,7 +63,7 @@ const updatePatientTransfer = async (patientDetails,site,pool) => {
   const old_site_id = patientDetails[0].old_site_id;
   for(let i = 0; i < patientDetails.length; i++) {
     data.push([1,1,old_site_id,site.id,patientDetails[i].patient_track_id,'Relocated due to KSM',
-      'ACCEPTED',patientDetails[i].program_id,site.tenant_id,false,1,1,new Date(),new Date(),true,false]);
+      'ACCEPTED',patientDetails[i].program_id,site.tenantId,false,1,1,new Date(),new Date(),true,false]);
   }
   const result = await pool.query(
     format(`INSERT INTO patient_transfer 
