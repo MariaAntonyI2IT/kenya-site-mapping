@@ -16,6 +16,9 @@ module.exports = {
     },
     json: {
       orgnaization: 'kenya_site_mapping'
+    },
+    report: {
+      siteUsers: 'site_users',
     }
   },
   validation: {
