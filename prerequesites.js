@@ -11,7 +11,7 @@ async function main() {
     where id in (select distinct(u.id) from "user" u
     inner join user_role ur on u.id = ur.user_id
     inner join role r on r.id = ur.role_id 
-    where r.name in ('SUPER_USER', 'SUPER_ADMIN') and u.tenant_id is not null
+    where r.name in ('SUPER_USER', 'SUPER_ADMIN', 'EMR_REPORT_ADMIN') and u.tenant_id is not null
     )`);
     console.log(`Updated tenant ${updateTenant.rowCount}`)
     const users = await pool.query(`select u.id, u.tenant_id from "user" u

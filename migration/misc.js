@@ -112,7 +112,52 @@ const updateKSMSiteUsers = async (pool) => {
       totalCount += parseInt(count);
     }
     console.log(`${user.username} -- ${totalCount}`);
-    if(totalCount == 0) {
+    if(user.username === 'salome.githiga@yahoo.com') {
+      console.log(`Static user ${user.username} - ${userId}`);
+      const sites = [
+        'Ngorano Health Centre'
+      ];
+      for(let i = 0; i < sites.length; i++) {
+        const siteData = (await pool.query(`select * from site where name =$1 and is_active=true and is_deleted = false`,[sites[i]])).rows;
+        if(siteData.length !== 1) {
+          throw ('Error:: static Site mismatch');
+        }
+        const site = siteData[0];
+        if(i == 0) {
+          await pool.query(`update "user" set is_active = true, is_deleted = false, comments = $2, tenant_id = $3 where id = $1`,[userId,'Updated site user (KSM)',site.tenant_id]);
+          await pool.query(`delete from user_organization where user_id = $1`,[userId]);
+          await pool.query(`insert into user_organization (user_id, organization_id) values ($1, $2)`,[userId,site.tenant_id]);
+        } else {
+          await pool.query(`insert into user_organization (user_id, organization_id) values ($1, $2)`,[userId,site.tenant_id]);
+        }
+      }
+      siteUserData.push({userId,username: user.username,role: 'SITE_USER',patientTables: '',site: sites.join(',')});
+
+    } else if(user.username === 'pmutua53@yahoo.com') {
+      console.log(`Static user ${user.username} - ${userId}`);
+      const sites = [
+        'Makindu Sub-county Hospital',
+        'Emali Model Health Centre',
+        'Ilatu Health Centre (Makindu)',
+        'Kikumini Health Centre'
+      ];
+      for(let i = 0; i < sites.length; i++) {
+        const siteData = (await pool.query(`select * from site where name =$1 and is_active=true and is_deleted = false`,[sites[i]])).rows;
+        if(siteData.length !== 1) {
+          throw ('Error:: static Site mismatch');
+        }
+        const site = siteData[0];
+        if(i == 0) {
+          await pool.query(`update "user" set is_active = true, is_deleted = false, comments = $2, tenant_id = $3 where id = $1`,[userId,'Updated site user (KSM)',site.tenant_id]);
+          await pool.query(`delete from user_organization where user_id = $1`,[userId]);
+          await pool.query(`insert into user_organization (user_id, organization_id) values ($1, $2)`,[userId,site.tenant_id]);
+        } else {
+          await pool.query(`insert into user_organization (user_id, organization_id) values ($1, $2)`,[userId,site.tenant_id]);
+        }
+      }
+      siteUserData.push({userId,username: user.username,role: 'SITE_USER',patientTables: '',site: sites.join(',')});
+
+    } else if(totalCount == 0) {
       const accountData = orgData.proposed.__accountMap__[user.propsedAccount];
       await pool.query(`update "user" set is_active = true, is_deleted = false, comments = $2, tenant_id = $3 where id = $1`,[userId,'Updated Account Admin role for site user (KSM)',accountData.tenantId]);
       await pool.query(`delete from user_organization where user_id = $1`,[userId]);
